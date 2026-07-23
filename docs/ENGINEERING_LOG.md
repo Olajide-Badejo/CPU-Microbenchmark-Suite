@@ -104,3 +104,33 @@ behavior, documented in Drepper.
 
 **Fix and why.** None. The cross check is meant to flag exactly this so a human
 reads it. Reported in the results rather than smoothed over, per Section 10.
+
+## 2026-07-23  Phase 3  measured FLOPS exceeded its own ceiling
+
+**Symptom.** peak_flops reported 168 GFLOPS on one core against a computed
+ceiling of 122 GFLOPS: an impossible 138 percent efficiency. The pointer chase
+had reported a clean 5.36 GHz from the same calibration, but this run's
+calibration returned 3.81 GHz.
+
+**Root cause.** The clock calibration was a single shot: one timed pass of the
+dependent add chain. That pass is only a lower bound on frequency, because any
+deschedule, interrupt, or a core still ramping to its boost P-state only
+lengthens the time and lowers the apparent clock. A single sample landed at
+3.81 GHz while the FMA loop itself ran at about 5.3 GHz, so the ceiling (built
+from the low clock) came out below the true throughput.
+
+**Options.** (1) Average several passes (still dragged down by slow samples).
+(2) Take the maximum of several passes after a warmup (the fastest pass is the
+least perturbed and closest to the true clock). (3) Read an MSR (not available
+under WSL).
+
+**Fix and why.** measure_clock_ghz_calibrated now runs one warmup pass to bring
+the core to its boost P-state, then takes the maximum apparent frequency over
+four passes. The add chain cannot run faster than one cycle per iteration, so
+the maximum is the cleanest estimate and cannot overshoot the true clock.
+
+**Verification.** Three consecutive runs report 5.26, 5.33, 5.26 GHz, and the
+single core FMA throughput sits at 99 to 100 percent of the ceiling computed
+from that same clock. Matching the ceiling to within one percent is the
+expected result for a saturating ten chain FMA loop and confirms both the clock
+and the FLOP counting.

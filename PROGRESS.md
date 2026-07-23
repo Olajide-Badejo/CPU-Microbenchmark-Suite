@@ -134,3 +134,39 @@ GB/s) passes (copy 36 to 42).
 **Plateau detection on the real curve:** L1D boundary 0.08 octaves from 48 KB,
 L2 boundary 0.50 octaves from 2 MB (both pass); the DRAM onset is flagged about
 1.5 octaves below the 33 MB L3, a real random access effect (finding, logged).
+
+### Phase 3: peak FLOPS + sanity gates + roofline  (COMPLETE)
+
+- [x] `flops_kernel.hpp`: ten independent AVX2 FMA chains (NEON and scalar
+  variants included for the Phase 4 port). Non unity contractive multiplier
+  prevents strength reduction and keeps values finite.
+- [x] `peak_flops.cpp`: single P core and all core throughput, single core
+  ceiling computed from the measured clock (clock x 8 lanes x 2 x 2 ports).
+- [x] Hardened the clock calibration (warmup then max of four passes) after a
+  single shot reading of 3.81 GHz produced an impossible 138 percent efficiency.
+- [x] `sanity_gates.py`: all four Section 10 gates, warn or strict modes.
+- [x] `roofline.py` and `plot_style.py`: measured roofline with the suite's
+  kernels placed, Okabe Ito colorblind safe palette.
+- [x] `run_suite.sh` (resumable, env capture), `assemble_summary.py`,
+  `gen_report_assets.py` (figures and LaTeX tables from summary.json only).
+
+**Measured peak FLOPS (calibrated clock 5.34 GHz):**
+
+| Configuration | GFLOPS | Ceiling | Efficiency |
+|---|---|---|---|
+| single P core | 169.5 | 170.9 | 99 percent |
+| all core (28 threads) | 1915 | aggregate | |
+
+Measured single core throughput matches the ceiling computed from the same
+clock to within one percent, confirming both the clock and the FLOP count.
+
+**Roofline:** peak compute 1915 GFLOPS, peak bandwidth 78 GB/s, ridge point
+24.6 FLOP per byte. STREAM Triad sits on the memory bound slope, Peak FMA on the
+compute ceiling.
+
+**All four sanity gates PASS (strict):** L1 5.02 cycles, DRAM 93.4 ns, single
+thread bandwidth 46.1 GB/s, single P core 169.5 GFLOPS.
+
+**Measured wall clock (i7-14700K, WSL2):** full suite 44 seconds (the adaptive
+per point timing keeps the latency sweep stable without the pessimistic 20 to
+40 minute budget). Recorded here to replace the estimate.

@@ -139,9 +139,17 @@ inline double sample_clock_ghz() {
 // cycle label needs, and it correctly follows turbo up to the real boost clock
 // the pinned core reaches under load. Returns GHz. Falls back to the (idle,
 // possibly wrong) /proc/cpuinfo sample on architectures without an asm path.
-inline double measure_clock_ghz_calibrated() {
+//
+// Robustness: the add chain cannot execute faster than one cycle per
+// iteration, so any perturbation (a deschedule, an interrupt, a core still
+// ramping to its boost P-state) only lengthens the measured time and lowers the
+// apparent frequency. We therefore run one warmup pass to bring the core to its
+// sustained clock and then take the maximum apparent frequency over several
+// passes, which is the reading least corrupted by perturbation and the best
+// estimate of the true boost clock. A single shot measurement is not reliable:
+// it was seen to read anywhere from 3.8 to 5.4 GHz on the same idle machine.
+inline double one_clock_pass_ghz(std::uint64_t iters) {
 #if defined(__x86_64__)
-    std::uint64_t iters = 2'000'000'000ull;
     const double n0 = static_cast<double>(iters);
     std::uint64_t acc = 0;
     const auto start = clock_type::now();
@@ -159,7 +167,6 @@ inline double measure_clock_ghz_calibrated() {
     do_not_optimize(acc);
     return secs > 0 ? (n0 / secs) / 1e9 : 0.0;
 #elif defined(__aarch64__)
-    std::uint64_t iters = 2'000'000'000ull;
     const double n0 = static_cast<double>(iters);
     std::uint64_t acc = 0;
     const auto start = clock_type::now();
@@ -176,6 +183,21 @@ inline double measure_clock_ghz_calibrated() {
                             .count();
     do_not_optimize(acc);
     return secs > 0 ? (n0 / secs) / 1e9 : 0.0;
+#else
+    (void)iters;
+    return sample_clock_ghz();
+#endif
+}
+
+inline double measure_clock_ghz_calibrated() {
+#if defined(__x86_64__) || defined(__aarch64__)
+    constexpr std::uint64_t kPass = 700'000'000ull;
+    one_clock_pass_ghz(kPass);  // warmup: bring the core to its boost P-state
+    double best = 0.0;
+    for (int i = 0; i < 4; ++i) {
+        best = std::max(best, one_clock_pass_ghz(kPass));
+    }
+    return best;
 #else
     return sample_clock_ghz();
 #endif
