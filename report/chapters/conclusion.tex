@@ -1,0 +1,20 @@
+\chapter{Conclusion}
+
+Every headline number a specification sheet quotes for this class of processor
+was measured directly and cross checked. The cache latencies recover the L1, L2,
+L3, and DRAM plateaus and agree with the Raptor Cove figures in cycles once the
+clock is measured honestly. Sustainable bandwidth reaches 87 percent of the
+theoretical dual channel peak and saturates at four to five threads, exposing
+the bandwidth wall. Peak single precision throughput matches the ceiling
+computed from the same measured clock to within one percent. The ceilings form a
+roofline on which the suite's own kernels sit exactly where the model predicts,
+and a BLIS style tile prediction, tested against a blocked GEMM sweep, misses the
+naive kernel in a way that is fully explained by the absence of packing.
+
+The recurring lesson is that the platform, not the arithmetic, is where the
+honesty is won or lost. On WSL2 the reported clock ignores turbo and the hybrid
+topology is hidden, and each of these, left unexamined, would have produced a
+confidently wrong table. Measuring the clock in software and flagging the
+heuristic topology turned both into stated, understood conditions. The natural
+continuation is a packed GEMM micro kernel that would close the roofline gap and
+let the tile prediction be tested against a kernel built on the same assumptions.

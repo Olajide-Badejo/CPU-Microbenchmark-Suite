@@ -1,0 +1,58 @@
+\documentclass[11pt,a4paper]{report}
+
+% House rule: no en or em dashes anywhere, and never a literal double hyphen in
+% prose. Enforced by scripts/check_no_dashes.py as the last build step.
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+\title{Measuring What Spec Sheets Only Claim:\\
+Cache Latency, STREAM Bandwidth, and Peak SIMD FLOPS\\
+on an Intel Core i7-14700K}
+\author{Olajide Badejo}
+\date{July 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report measures, on real hardware, the numbers usually quoted from
+specification sheets: cache load use latencies, sustainable memory bandwidth,
+and peak single precision floating point throughput. Every figure is measured
+on an Intel Core i7-14700K running inside WSL2, using timing and known transfer
+sizes rather than hardware performance counters, which WSL2 does not expose. A
+prefetcher defeating pointer chase recovers the L1, L2, L3, and DRAM plateaus
+and cross checks them against sysfs. STREAM in three variants gives a bandwidth
+scaling curve that saturates well before the cores do. A ten chain FMA loop
+reaches the peak throughput computed from a software measured clock, to within
+one percent. The ceilings are assembled into a measured roofline, and a BLIS
+style analytical tile prediction is validated against a blocked GEMM sweep. The
+prediction misses the naive kernel by design, and that miss is reported as a
+finding rather than hidden.
+\end{abstract}
+
+\tableofcontents
+
+\input{chapters/introduction}
+\input{chapters/background}
+\input{chapters/methodology}
+\input{chapters/implementation}
+\input{chapters/results}
+\input{chapters/discussion}
+\input{chapters/conclusion}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

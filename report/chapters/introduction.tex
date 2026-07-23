@@ -1,0 +1,33 @@
+\chapter{Introduction}
+
+Specification sheets quote cache latencies in cycles, memory bandwidth in
+gigabytes per second, and peak floating point throughput in GFLOPS. These
+numbers are ceilings under idealized assumptions. What a program actually sees
+depends on the access pattern, the compiler, the memory hierarchy under load,
+and the clock the core really runs at. This project measures those numbers
+directly on one machine, an Intel Core i7-14700K, and assembles them into a
+model that predicts something concrete: the cache block sizes a blocked matrix
+multiply should use.
+
+The work has five measured pillars. First, a dependent load pointer chase
+recovers the load use latency of each cache level, from a 4 KB working set that
+lives in L1 up to a 512 MB working set that is firmly in DRAM, and a change
+point detector locates the plateau boundaries and cross checks them against the
+cache sizes the operating system reports. Second, a STREAM style benchmark in
+three variants measures sustainable bandwidth and a thread scaling curve.
+Third, a ten chain fused multiply add loop measures peak single precision
+throughput and compares it to the ceiling computed from the measured clock.
+Fourth, these ceilings become a roofline, and a BLIS style analytical model
+predicts matrix multiply tile sizes that a blocked GEMM sweep then tests.
+Fifth, the compute kernels are ported to AArch64 NEON and checked for
+correctness under emulation.
+
+The guiding principle is measurement honesty. The target runs inside WSL2,
+which exposes no hardware performance counters, so every number here comes from
+timing and a known transfer size, the classical approach of
+McCalpin~\cite{mccalpin1995}. Where the platform makes a number hard to get
+right, this report states the difficulty and the workaround rather than quietly
+publishing a plausible figure. Two such difficulties, described in the
+methodology, turned out to matter a great deal: the reported clock does not
+track the boost frequency, and the hybrid core layout is invisible to the
+guest.

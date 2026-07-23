@@ -209,3 +209,17 @@ the model assumes a packed Nr wide micro-panel, the naive kernel runs the full
 width of B, so its L1 and L2 fill with full B rows and it prefers a much smaller
 Kc. Reported as a finding per objective 4, not smoothed over. The roofline shows
 the same gap: naive GEMM sits well below the single core ceiling.
+
+### Phase 6: docs + reports  (COMPLETE)
+
+- [x] README (headline table, latency and roofline figures early, the WSL2 PMU
+  and clock limitation stated), methodology, DESIGN_DECISIONS, CONTRIBUTING,
+  CHANGELOG. Engineering log grown through every phase.
+- [x] Main report PDF (17 pages): introduction, background, methodology,
+  implementation, results (all figures and tables from summary.json), discussion,
+  conclusion, references. Built by `make report`, dash check last.
+- [x] Debug report PDF (3 pages): seven findings with symptom, root cause, fix,
+  verification. Equal rank deliverable.
+- [x] Personal report PDF (8 pages, Section 19): overview, specifications,
+  implementation, chronological steps, problems and errors, future work.
+- [x] All three PDFs compile clean and dash clean; copied to `assets/reports/`.

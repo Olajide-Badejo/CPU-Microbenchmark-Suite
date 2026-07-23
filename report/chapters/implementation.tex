@@ -1,0 +1,58 @@
+\chapter{Implementation}
+
+\section{Anti optimization}
+
+The single greatest risk in a microbenchmark is the compiler deleting the work
+being timed. Link time optimization is forbidden for every benchmark target and
+the build system asserts it off, because the linker would otherwise prove a
+measured loop has no observable effect and remove it. Inside each loop a
+\texttt{do\_not\_optimize} barrier, implemented as inline assembly with a memory
+clobber, forces the result to be treated as observed. The pointer chase walking
+pointer, the STREAM outputs, and the FMA accumulators all pass through such
+barriers.
+
+\section{Pointer chase}
+
+Nodes are 64 byte aligned and linked by a Fisher Yates permutation whose visit
+order forms one Hamiltonian cycle by construction. A unit test proves the single
+cycle property for every swept size and rejects deliberately broken multi cycle
+inputs, so a green test means the guarantee has teeth. The working set sweeps
+from 4 KB to 512 MB in powers of two, and per point the timed window is sized
+adaptively to a fixed wall time so small and large working sets are both stable.
+
+\section{STREAM}
+
+The four kernels appear in three variants. The scalar baseline suppresses
+vectorization on those functions only, using a function attribute, so the honest
+scalar number is genuinely scalar while the rest of the translation unit stays
+optimized. The compiler vectorized variant is the same source at \texttt{-O3
+-march=native}. The intrinsic variant uses AVX2 with \texttt{\_mm256\_stream\_ps}
+non temporal stores for the DRAM test. Threads pin to P cores first and then E
+cores, with first touch initialization so pages are resident locally, and each
+worker times its own chunk between barriers to avoid a main thread timing race.
+
+\section{Peak FLOPS}
+
+The kernel runs ten independent FMA accumulator chains. Ten is chosen because
+the FMA units have a latency of four to five cycles across two pipes, so at least
+eight to ten in flight chains are needed to keep both pipes issuing every cycle.
+The multiplier is non unity, to prevent the compiler strength reducing the
+recurrence into an addition, and slightly less than one, so the values converge
+to a finite fixed point rather than drifting to infinity.
+
+\section{Blocked GEMM}
+
+The GEMM is a naive blocked triple loop with the innermost loop contiguous over
+$N$, so the compiler vectorizes it, blocked by $(M_c, K_c, N_c)$. It is
+deliberately not a packed micro kernel; the point is to see which tile size runs
+fastest, not to beat a tuned library. A correctness test checks the blocked
+result against a plain triple loop for several tiles, including tiles that do
+not divide the matrix dimensions.
+
+\section{AArch64 NEON port}
+
+The FLOPS and STREAM kernels have NEON paths behind \texttt{\#ifdef
+\_\_ARM\_NEON}. The suite cross compiles with a static AArch64 toolchain and runs
+the correctness tests under qemu-user; timing is never taken under emulation. The
+FLOPS correctness test is written to be SIMD width independent, so one assertion
+covers both the 8 lane AVX2 build and the 4 lane NEON build.

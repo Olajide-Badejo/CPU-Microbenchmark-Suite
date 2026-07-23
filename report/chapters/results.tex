@@ -1,0 +1,111 @@
+\chapter{Results}
+
+All numbers below come from a single committed run on the i7-14700K, pinned to a
+P core, at a software measured clock of about \SI{5.3}{\giga\hertz}.
+
+\section{Cache latency}
+
+The pointer chase recovers a clean four plateau staircase
+(Figure~\ref{fig:latency}). L1 data latency is about \SI{0.94}{\nano\second},
+which at the measured clock is 5.0 cycles, exactly the Raptor Cove L1 load use
+latency. L2 is about 16 cycles, the L3 region climbs through the tens of cycles,
+and DRAM settles near \SI{93}{\nano\second}. Table~\ref{tab:latency} lists the
+detected plateaus.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{latency_plateau.png}
+\caption{Load use latency against working set, with detected plateau means and
+the sysfs cache capacities marked. The step to DRAM begins about one octave
+below the nominal 33 MB L3, an effect of TLB reach and associativity under
+random access.}
+\label{fig:latency}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{Detected latency plateaus, cross checked against sysfs.}
+\label{tab:latency}
+\input{tables/latency_table}
+\end{table}
+
+The change point detector places the L1 boundary within \num{0.08} octaves of
+the 48 KB L1 capacity and the L2 boundary within \num{0.50} octaves of the 2 MB
+L2. The DRAM onset is flagged about \num{1.5} octaves below the nominal L3
+capacity, which the discussion addresses.
+
+\section{Bandwidth}
+
+Single thread bandwidth by variant is in Table~\ref{tab:bandwidth} and
+Figure~\ref{fig:variants}. The non temporal variant wins on Add and Triad, where
+avoiding the read for ownership pays off, while the scalar and vectorized
+variants are competitive on Copy. The thread scaling curve
+(Figure~\ref{fig:scaling}) saturates near \SI{78}{\giga\byte\per\second} by four
+to five threads, about 87 percent of the DDR5-5600 dual channel theoretical
+\SI{89.6}{\giga\byte\per\second}. Beyond that point additional P cores, and then
+the E cores, add no bandwidth: the reported knee is the bandwidth wall, not a P
+to E transition.
+
+\begin{table}[h]
+\centering
+\caption{Single thread STREAM bandwidth by variant, GB/s.}
+\label{tab:bandwidth}
+\input{tables/bandwidth_table}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{variant_comparison.png}
+\caption{Single thread bandwidth by kernel and variant.}
+\label{fig:variants}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\linewidth]{bandwidth_scaling.png}
+\caption{Bandwidth scaling, P cores first then E cores. The curve saturates well
+before the cores are exhausted.}
+\label{fig:scaling}
+\end{figure}
+
+\section{Peak FLOPS}
+
+Table~\ref{tab:flops} compares measured throughput to the ceiling computed from
+the same measured clock. One P core reaches about \SI{170}{GFLOPS}, which is 99
+percent of its ceiling; matching the ceiling to within one percent is the
+expected result for a saturating ten chain loop and confirms both the clock and
+the FLOP counting. All 28 logical CPUs together reach about \SI{1900}{GFLOPS}.
+
+\begin{table}[h]
+\centering
+\caption{Peak single precision throughput against the computed ceiling.}
+\label{tab:flops}
+\input{tables/flops_table}
+\end{table}
+
+\section{Roofline and tile prediction}
+
+Figure~\ref{fig:roofline} places the suite's kernels on the measured roofline.
+STREAM Triad sits on the memory bound slope. The single core FMA loop sits on the
+single core ceiling. The naive blocked GEMM, though high in arithmetic intensity
+and therefore compute bound in principle, sits well below the single core
+ceiling: the gap is the cost of not packing.
+
+Table~\ref{tab:tile} compares the BLIS analytical tile prediction to the
+empirical best from the GEMM sweep. They disagree: the model predicts a large
+$K_c$, the naive kernel prefers a much smaller one. This miss is a finding, not a
+failure, and the discussion explains it.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{roofline.png}
+\caption{Measured roofline with all core and single core compute ceilings.}
+\label{fig:roofline}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{BLIS analytical prediction versus empirical best tile.}
+\label{tab:tile}
+\input{tables/tile_table}
+\end{table}

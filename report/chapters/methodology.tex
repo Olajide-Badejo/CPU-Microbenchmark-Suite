@@ -1,0 +1,61 @@
+\chapter{Methodology}
+
+\section{What timing derived numbers can and cannot claim}
+
+The target runs inside WSL2, a Hyper-V utility virtual machine, which exposes no
+hardware performance monitoring unit. Every number in this report is therefore
+derived from wall clock timing and a known transfer size or operation count.
+This is the classical STREAM methodology and it is entirely sufficient for
+latency, bandwidth, and throughput. What it cannot provide is a direct cycle or
+cache miss count from the hardware; a \texttt{perf\_event} wrapper is compiled
+but is gated to bare metal Linux, where \texttt{is\_available} returns true, and
+it stays dormant under WSL2.
+
+\section{The clock does not track turbo}
+
+Cycle denominated figures need the frequency the core actually ran at. Under
+WSL2 the \texttt{cpu MHz} field in \texttt{/proc/cpuinfo} is pinned to a base
+value near \SI{3.42}{\giga\hertz} and never moves, even under full load, and no
+\texttt{cpufreq} interface exists. The pinned core, however, boosts to about
+\SI{5.3}{\giga\hertz}. Using the base value would understate every cycle count
+by roughly a factor of \num{1.6}.
+
+The fix is to measure the running clock in software. A dependent chain of
+integer additions executes at one cycle per iteration, because each addition
+depends on the previous result and the loop counter runs on a separate port.
+Timing a known iteration count gives the frequency directly. Because the chain
+cannot run faster than one cycle per iteration, any perturbation only lengthens
+the time, so the maximum frequency over several warmed passes is the cleanest
+estimate. This method reports about \SI{5.3}{\giga\hertz} under load, and with
+it the L1 latency lands at exactly the expected 5 cycles.
+
+\section{Turbo stability and the power plan}
+
+For a stable clock the Windows power plan maximum processor state is set to 99
+percent, which caps turbo so the boost frequency does not wander. The software
+clock measurement is taken during every run regardless, so a session without the
+cap is still honest, only noisier.
+
+\section{Pinning and the hybrid layout}
+
+Benchmarks pin to a single logical CPU with \texttt{sched\_setaffinity}, a P
+core by default. The i7-14700K is a hybrid part with 8 performance cores and 12
+efficiency cores, but WSL2 does not expose the \texttt{cpu\_core} and
+\texttt{cpu\_atom} split, and it reports a uniform L2 size across all cores, so P
+and E cannot be recovered from sysfs. The topology reader detects the split when
+present and otherwise falls back to the documented Intel enumeration, marking the
+result as heuristic rather than measured.
+
+\section{Reproducibility}
+
+Every run records the compiler and flags, kernel version, WSL flag, measured
+clock, pinned core, and git commit into the summary, so any figure can be traced
+to the conditions that produced it. The reproducibility block for the run behind
+this report is in Table~\ref{tab:repro}.
+
+\begin{table}[h]
+\centering
+\caption{Reproducibility record for the committed run.}
+\label{tab:repro}
+\input{tables/repro_table}
+\end{table}

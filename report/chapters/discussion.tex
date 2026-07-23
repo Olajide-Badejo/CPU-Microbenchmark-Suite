@@ -1,0 +1,44 @@
+\chapter{Discussion}
+
+\section{The DRAM onset below nominal L3}
+
+The latency staircase steps up to DRAM near an 8 to 16 MB working set, while the
+L3 is 33 MB. Single threaded random pointer chasing does not reach the full L3
+before latency climbs, because the random 64 byte stride thrashes the
+translation lookaside buffer, whose reach with 4 KB pages is limited, and it
+stresses L3 associativity and replacement. Effective capacity under this access
+pattern is roughly half the nominal size. This is expected
+behavior~\cite{drepper2007}, and the sysfs cross check is designed to flag it
+rather than smooth it away. Large pages would isolate a purer DRAM latency, at
+the cost of measuring something less representative of ordinary code.
+
+\section{The bandwidth wall}
+
+Bandwidth saturates at four to five threads. This is the defining feature of a
+memory bound workload on a dual channel desktop: the DRAM channels are the
+bottleneck, and once they are full, more cores cannot help. The practical
+consequence is that the P versus E core question is moot for STREAM, since the
+knee arrives long before the core count does. It would matter for a compute
+bound workload, where the E cores add throughput, which is visible in the all
+core FLOPS number.
+
+\section{Why the tile prediction misses}
+
+The BLIS analytical model assumes a packed micro kernel in which the L1 resident
+panel of $B$ is only $N_r$ elements wide. The validation kernel here is
+deliberately naive: it does not pack, and its inner loop spans the full width of
+$B$. Each reused row of $B$ is therefore the full matrix width, several
+kilobytes, so only a handful of rows fit in L1 or L2 at once, and the optimum
+moves to a much smaller $K_c$ than the packed model wants. The prediction is not
+wrong for the kernel it describes; it is describing a different kernel. Closing
+the gap means implementing the packed micro kernel the model assumes, which is
+the natural next step and is recorded as future work.
+
+\section{Limitations}
+
+The clock is measured in software, not read from a counter, so it carries a few
+percent of uncertainty; this is why efficiencies are reported as approximate and
+a match to within one percent is treated as confirmation rather than a precise
+claim. Bandwidth uses float arrays and the classical STREAM byte convention. The
+hybrid P and E identification is heuristic under WSL2. None of these affect the
+qualitative conclusions, and each is stated where it applies.

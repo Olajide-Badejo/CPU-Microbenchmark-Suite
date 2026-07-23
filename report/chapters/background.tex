@@ -1,0 +1,50 @@
+\chapter{Background}
+
+\section{The memory hierarchy and load use latency}
+
+A modern core hides memory latency with out of order execution: while one load
+is outstanding, independent work continues. This makes ordinary array traversal
+a poor latency probe, because the hardware overlaps many accesses. The honest
+probe is a dependent load chain, where the address of the next load is the value
+returned by the previous one. The processor cannot start load $n+1$ until load
+$n$ retires, so the measured time per load is the true load use latency of
+whichever cache level currently holds the data. Drepper~\cite{drepper2007} and
+Hennessy and Patterson~\cite{hennessy2019} describe this technique and the
+plateau structure it reveals.
+
+Two things must be defeated for the probe to be honest. The stride prefetcher
+will predict a regular access pattern and hide the latency, so the chase visits
+a random permutation at a 64 byte (one cache line) stride, which the prefetcher
+cannot anticipate. The permutation must also form a single cycle over all nodes;
+a permutation that splits into shorter cycles would keep a small footprint
+resident in L1 regardless of the allocation size, silently reporting L1 latency
+everywhere.
+
+\section{The STREAM model and machine balance}
+
+McCalpin's STREAM~\cite{mccalpin1995} measures sustainable bandwidth with four
+kernels, Copy, Scale, Add, and Triad, on arrays sized several times larger than
+the last level cache so the data cannot hide in cache. Bandwidth is bytes moved
+divided by time, where bytes moved uses a fixed convention per kernel. Non
+temporal stores matter here: an ordinary store first reads the target line for
+ownership, doubling write traffic, whereas a streaming store writes straight to
+memory, so the counted bytes match the real DRAM traffic.
+
+\section{The roofline model}
+
+The roofline~\cite{williams2009} bounds attainable performance by the minimum of
+two ceilings: peak compute, and arithmetic intensity multiplied by peak
+bandwidth. Arithmetic intensity is FLOPs performed per byte of memory traffic. A
+kernel with low intensity is memory bound and sits on the sloped bandwidth line;
+a kernel with high intensity is compute bound and sits under the flat compute
+ceiling. The two lines meet at the ridge point.
+
+\section{BLIS blocking}
+
+The BLIS framework~\cite{vanzee2015} structures matrix multiply as packed panels
+that are blocked to reside at specific cache levels. The analytical
+model~\cite{low2016} sizes the cache blocks, $M_c$, $K_c$, and $N_c$, from the
+cache capacities and associativities so that a panel of $A$ stays in L2 and a
+panel of $B$ stays in L3 while a micro panel of $B$ stays in L1. This report
+computes such a prediction from the measured cache geometry and tests it against
+an empirical tile sweep.
