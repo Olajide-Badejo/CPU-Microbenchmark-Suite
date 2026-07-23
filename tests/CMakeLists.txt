@@ -32,6 +32,13 @@ target_compile_options(test_flops_kernel PRIVATE
     -O3 ${ARCH_VECTOR_FLAGS} -Wall -Wextra -Wpedantic)
 add_test(NAME flops_kernel_verify COMMAND test_flops_kernel)
 
+add_executable(test_gemm test_gemm.cpp)
+target_include_directories(test_gemm PRIVATE
+    ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(test_gemm PRIVATE
+    -O3 ${ARCH_VECTOR_FLAGS} -Wall -Wextra -Wpedantic)
+add_test(NAME gemm_verify COMMAND test_gemm)
+
 # Python integration test: plateau detector on a synthetic curve.
 find_program(PYTHON3 python3)
 if(PYTHON3)

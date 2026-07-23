@@ -163,3 +163,54 @@ NEON STREAM kernel variants are numerically correct in `stream_numeric_verify`.
 No QEMU floating point discrepancy appeared: NEON `vfmaq_f32` is a true fused
 multiply add with a single rounding, matching the x86 FMA, so the same
 tolerances hold on both.
+
+## 2026-07-23  Phase 5  unsigned underflow poisoned the GEMM test data
+
+**Symptom.** test_gemm failed on every element for tiles that split K, yet the
+blocked result exactly matched the reference (difference zero). The values were
+`inf` and about 2e38.
+
+**Root cause.** Test and validator initialized data with `(i % 11) - 5`, where
+`i` is `size_t`. `i % 11` is unsigned, so for residues below 5 the subtraction
+underflowed to about 1.8e19, and the products overflowed float to infinity. The
+blocked and reference kernels agreed (both `inf`), but `CHECK_NEAR` computes
+`fabs(inf - inf)`, which is `NaN`, and `NaN <= tol` is false, so every check
+failed. A correct kernel was failing because of poisoned inputs.
+
+**Options.** (1) Loosen the tolerance (wrong, hides the overflow). (2) Cast the
+residue to a signed int before subtracting.
+
+**Fix and why.** Cast to `int` first in both the test and gemm_validate:
+`static_cast<int>(i % 11) - 5`. Data now spans a small signed range and the
+products stay well within float. One line each.
+
+**Verification.** test_gemm passes for all five tile sizes including tiles that
+do not divide the matrix dimensions. Single block tile matches the reference
+bit for bit (the loop order is identical), and split K tiles match within 1e-3.
+
+## 2026-07-23  Phase 5  BLIS prediction misses the naive kernel, as expected
+
+**Symptom.** Not a bug, the headline finding for objective 4. The BLIS
+analytical model predicts Mc 704, Kc 696, Nc large from the measured cache
+geometry, but the empirical best tile for the naive blocked kernel is Mc 384,
+Kc 64: the Kc prediction is off by about 3.4 octaves.
+
+**Root cause.** The BLIS model assumes a packed GEBP micro-kernel with register
+blocks Mr and Nr, where the B micro-panel in L1 is only Nr wide. The validation
+kernel here is deliberately naive: it does not pack, and its inner loop runs the
+full width of B. So each reused B row is the full matrix width (1536 floats, 6
+KB), and only a handful fit in L1 or L2 at once, which drives the optimum to a
+much smaller Kc than the packed model wants.
+
+**Options.** (1) Bend the model to fit the naive kernel (defeats the purpose of
+an independent prediction). (2) Report the miss with its cause.
+
+**Fix and why.** Option 2, which is what Section 4 objective 4 asks for. The
+report presents both tiles and states that the gap is the absence of packing,
+not a modeling error. Building the packed micro-kernel that would close the gap
+is future work, recorded as such.
+
+**Verification.** tile_predict.py prints the predicted and empirical tiles and
+the 3.4 octave Kc gap, labeled MISS (finding). The roofline shows the naive
+GEMM sitting below the single core ceiling, the same gap viewed from the
+performance side.

@@ -39,6 +39,8 @@ def build_roofline(summary: dict, out_path: Path) -> dict:
     flops = summary.get("peak_flops", {})
 
     peak_gflops = flops.get("all_core_gflops", 0.0)
+    single_gflops = flops.get("single_core_gflops", 0.0)
+    single_ceiling = flops.get("ceiling_single_gflops", single_gflops)
     peak_bw = saturated_bandwidth_gbs(stream)
     if peak_gflops <= 0 or peak_bw <= 0:
         raise SystemExit("roofline needs peak_flops and stream in summary.json")
@@ -48,16 +50,19 @@ def build_roofline(summary: dict, out_path: Path) -> dict:
     # Kernels to place: (label, arithmetic_intensity, measured_gflops).
     points = []
     # STREAM triad: 2 FLOP per element, 12 bytes moved per element -> AI = 1/6.
+    # Placed against the all core bandwidth ceiling (saturated, multi thread).
     triad_bw = saturated_bandwidth_gbs(stream)
     if triad_bw > 0:
         ai = 2.0 / 12.0
         points.append(("STREAM Triad", ai, ai * triad_bw))
-    # Peak FMA sits on the compute ceiling at a high AI (pure register work).
-    points.append(("Peak FMA", ridge_ai * 8.0, peak_gflops))
-    # GEMM if present.
+    # Peak FMA on one core sits at its single core ceiling (high AI).
+    if single_gflops > 0:
+        points.append(("Peak FMA (1 core)", ridge_ai * 8.0, single_gflops))
+    # Naive blocked GEMM (single core): high AI, but far below the single core
+    # ceiling because it is unpacked. The gap is the point of the figure.
     gemm = summary.get("gemm")
     if gemm and "arithmetic_intensity" in gemm and "best_gflops" in gemm:
-        points.append(("Blocked GEMM", gemm["arithmetic_intensity"],
+        points.append(("Blocked GEMM (1 core)", gemm["arithmetic_intensity"],
                        gemm["best_gflops"]))
 
     apply_style()
@@ -73,6 +78,13 @@ def build_roofline(summary: dict, out_path: Path) -> dict:
 
     ax.plot(mem_x, mem_y, color=color(0), linewidth=2.2)
     ax.plot(comp_x, comp_y, color=color(0), linewidth=2.2, label="Measured roofline")
+    # Single core compute ceiling, so the single core kernels have a fair line.
+    if single_ceiling > 0:
+        ax.hlines(single_ceiling, single_ceiling / peak_bw, ai_hi,
+                  color="#8a8a8a", linewidth=1.4, linestyle="--")
+        ax.annotate(f"1 core ceiling {single_ceiling:.0f} GFLOPS",
+                    xy=(ai_hi * 0.05, single_ceiling * 1.08), color="#6b6b6b",
+                    fontsize=8, ha="left")
     ax.axvline(ridge_ai, color="#b0b0b0", linewidth=1.0, linestyle=":")
     ax.annotate(f"ridge {ridge_ai:.1f} FLOP/byte",
                 xy=(ridge_ai, peak_gflops), xytext=(ridge_ai * 1.1, peak_gflops * 0.35),

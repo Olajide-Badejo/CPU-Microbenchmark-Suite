@@ -25,6 +25,7 @@ from plateau_detect import (  # noqa: E402
 )
 from plot_style import apply_style, color  # noqa: E402
 from roofline import build_roofline  # noqa: E402
+from tile_predict import render_table, validate  # noqa: E402
 
 FIGDIR = ROOT / "report" / "figures"
 TABDIR = ROOT / "report" / "tables"
@@ -228,6 +229,9 @@ def main(argv: list[str]) -> int:
         ("flops table", lambda: tab_flops(summary)),
         ("repro table", lambda: tab_reproducibility(summary)),
     ]
+    if summary.get("gemm"):
+        tasks.append(("tile table", lambda: _write(
+            TABDIR / "tile_table.tex", render_table(validate(summary)))))
     for _label, fn in tqdm(tasks, desc="report assets", disable=not sys.stderr.isatty()):
         fn()
 

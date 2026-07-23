@@ -38,6 +38,10 @@ struct Topology {
     std::size_t l1i_bytes = 0;
     std::size_t l2_bytes = 0;
     std::size_t l3_bytes = 0;
+    int l1d_ways = 0;
+    int l2_ways = 0;
+    int l3_ways = 0;
+    int line_bytes = 64;
     int num_logical = 0;
     std::vector<int> p_cores;  // logical CPU ids identified as P cores
     std::vector<int> e_cores;  // logical CPU ids identified as E cores
@@ -118,16 +122,34 @@ inline Topology read_topology(const std::string& sysfs_root = "/sys") {
         const std::string type = detail::read_first_line(base + "/type");
         const std::size_t size =
             parse_cache_size(detail::read_first_line(base + "/size"));
+        int ways = 0, line = 0;
+        try {
+            ways = std::stoi(detail::read_first_line(base + "/ways_of_associativity"));
+        } catch (...) {
+        }
+        try {
+            line = std::stoi(detail::read_first_line(base + "/coherency_line_size"));
+        } catch (...) {
+        }
+        if (line > 0) topo.line_bytes = line;
         int level = 0;
         try {
             level = std::stoi(level_s);
         } catch (...) {
             continue;
         }
-        if (level == 1 && type == "Data") topo.l1d_bytes = size;
-        else if (level == 1 && type == "Instruction") topo.l1i_bytes = size;
-        else if (level == 2) topo.l2_bytes = size;
-        else if (level == 3) topo.l3_bytes = size;
+        if (level == 1 && type == "Data") {
+            topo.l1d_bytes = size;
+            topo.l1d_ways = ways;
+        } else if (level == 1 && type == "Instruction") {
+            topo.l1i_bytes = size;
+        } else if (level == 2) {
+            topo.l2_bytes = size;
+            topo.l2_ways = ways;
+        } else if (level == 3) {
+            topo.l3_bytes = size;
+            topo.l3_ways = ways;
+        }
     }
 
     // Count logical CPUs by walking cpuN directories.

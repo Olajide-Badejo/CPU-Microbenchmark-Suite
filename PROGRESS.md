@@ -188,3 +188,24 @@ per point timing keeps the latency sweep stable without the pessimistic 20 to
 Correctness only under QEMU (timing never reported). No QEMU float quirk arose;
 NEON `vfmaq_f32` is a true FMA matching x86. The ARM NT store column falls back
 to ordinary NEON stores (no clean NEON equivalent), stated honestly (logged).
+
+### Phase 5: BLIS tile prediction + GEMM validation  (COMPLETE)
+
+- [x] Extended topology to read associativity and line size (L1D 12 way, L2 16
+  way, L3 11 way, 64 byte lines).
+- [x] `gemm.hpp`: naive blocked FP32 GEMM plus a reference triple loop.
+- [x] `gemm_validate.cpp`: single core pinned tile sweep (Mc x Kc), emits cache
+  geometry so the model and the sweep use the same numbers. Best tile Mc 384,
+  Kc 64 at 62.8 GFLOPS.
+- [x] `test_gemm`: blocked equals reference for five tiles including ones that
+  do not divide the dimensions. Caught an unsigned underflow in the test data
+  that overflowed the products to infinity (logged).
+- [x] `tile_predict.py`: BLIS style analytical (Mc, Kc, Nc) from measured cache
+  capacities and associativity, with the empirical comparison table.
+
+**Prediction versus empirical (the reported finding):** BLIS predicts Mc 704,
+Kc 696; the naive kernel's best is Mc 384, Kc 64, a 3.4 octave Kc miss. Cause:
+the model assumes a packed Nr wide micro-panel, the naive kernel runs the full
+width of B, so its L1 and L2 fill with full B rows and it prefers a much smaller
+Kc. Reported as a finding per objective 4, not smoothed over. The roofline shows
+the same gap: naive GEMM sits well below the single core ceiling.
