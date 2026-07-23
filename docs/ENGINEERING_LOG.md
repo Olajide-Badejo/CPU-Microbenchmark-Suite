@@ -134,3 +134,32 @@ single core FMA throughput sits at 99 to 100 percent of the ceiling computed
 from that same clock. Matching the ceiling to within one percent is the
 expected result for a saturating ten chain FMA loop and confirms both the clock
 and the FLOP counting.
+
+## 2026-07-23  Phase 4  NEON port and the missing non temporal store
+
+**Symptom.** Not a failure, a design decision worth recording. The x86 STREAM
+intrinsic variant relies on `_mm256_stream_ps`, a non temporal store that skips
+the read for ownership. AArch64 NEON in the baseline has no direct equivalent
+usable the same way (there is `stnp`, but it is a store pair hint, not a clean
+per vector streaming store), so the ARM build cannot mirror the NT variant one
+to one.
+
+**Root cause.** The two SIMD ISAs expose different memory hint primitives.
+
+**Options.** (1) Emit `stnp` inline asm on ARM (fragile, and its semantics are a
+hint the core may ignore). (2) Route the ARM NT variant to ordinary vector
+stores and label it honestly. (3) Drop the NT variant on ARM.
+
+**Fix and why.** Option 2. On AArch64 the `*_nt` kernels fall back to ordinary
+NEON stores (the `stream_kernels.hpp` non AVX2 branch), and the report states
+that the ARM NT column is ordinary stores, not true non temporal. Correctness
+is identical; only the DRAM write allocate behavior differs, which the report
+notes rather than hides.
+
+**Verification.** The full cross compiled test suite passes under qemu-user: the
+NEON four lane FMA path in `flops_kernel_verify` converges to the same
+width independent fixed point (chains times lanes times 10000), and all three
+NEON STREAM kernel variants are numerically correct in `stream_numeric_verify`.
+No QEMU floating point discrepancy appeared: NEON `vfmaq_f32` is a true fused
+multiply add with a single rounding, matching the x86 FMA, so the same
+tolerances hold on both.

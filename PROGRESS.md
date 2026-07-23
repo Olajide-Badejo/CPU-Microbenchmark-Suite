@@ -170,3 +170,21 @@ thread bandwidth 46.1 GB/s, single P core 169.5 GFLOPS.
 **Measured wall clock (i7-14700K, WSL2):** full suite 44 seconds (the adaptive
 per point timing keeps the latency sweep stable without the pessimistic 20 to
 40 minute budget). Recorded here to replace the estimate.
+
+### Phase 4: NEON port + QEMU + ARM CI  (COMPLETE)
+
+- [x] Installed `g++-aarch64-linux-gnu` 15.2.0 and `qemu-aarch64` 10.2.1.
+- [x] `cmake/toolchain-aarch64.cmake`: static cross build with
+  `CMAKE_CROSSCOMPILING_EMULATOR` so ctest runs cross binaries under qemu.
+- [x] NEON paths in `flops_kernel.hpp` (four lane `vfmaq_f32`) and the STREAM
+  kernel fallback; `test_flops_kernel` is width independent so one assertion
+  covers both 8 lane AVX2 and 4 lane NEON.
+- [x] `scripts/arm_selftest.sh` and `make arm-selftest`: cross build, confirm
+  the binary is ARM aarch64, run all five tests under qemu-user. All pass.
+- [x] `.github/workflows/ci.yml` (x86 build, tests, style, qemu NEON self test,
+  report compile from committed summary) and `arm_native.yml` (native aarch64
+  build, tests, mini suite, artifact labeled by runner CPU).
+
+Correctness only under QEMU (timing never reported). No QEMU float quirk arose;
+NEON `vfmaq_f32` is a true FMA matching x86. The ARM NT store column falls back
+to ordinary NEON stores (no clean NEON equivalent), stated honestly (logged).

@@ -1,5 +1,6 @@
 # Build trees
 build/
+build-arm/
 report/build/
 report_debug/build/
 report_for_me/build/

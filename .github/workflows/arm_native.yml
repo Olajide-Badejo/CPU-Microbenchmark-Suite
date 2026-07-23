@@ -1,0 +1,52 @@
+name: arm-native
+
+# Native AArch64 build, tests, and a real (not emulated) mini suite run on an
+# ARM runner. This is the only place ARM performance numbers are legitimate:
+# native hardware, real clock. Artifacts flow through the same summary.json
+# pipeline as the x86 results, labeled by the runner CPU model.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  arm-native:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ python3 python3-pip
+          python3 -m pip install --quiet --break-system-packages \
+            numpy scipy matplotlib tqdm
+
+      - name: Record runner CPU
+        id: cpu
+        run: |
+          MODEL="$(lscpu | grep -m1 -E 'Model name' | cut -d: -f2- | xargs || echo aarch64)"
+          echo "model=${MODEL}" >> "$GITHUB_OUTPUT"
+          echo "Runner CPU: ${MODEL}"
+
+      - name: Configure and build (native aarch64)
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: Tests
+        run: cd build && ctest --output-on-failure
+
+      - name: Mini measurement suite (native, real numbers)
+        run: bash scripts/run_suite.sh --mini --fresh
+
+      - name: Sanity gates (informational on ARM)
+        run: python3 scripts/sanity_gates.py experiments/results/summary.json || true
+
+      - name: Upload ARM results
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm-summary-${{ steps.cpu.outputs.model }}
+          path: experiments/results/summary.json
+          if-no-files-found: error

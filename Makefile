@@ -13,8 +13,8 @@ JOBS         := $(shell nproc 2>/dev/null || echo 4)
 
 .DEFAULT_GOAL := build
 
-.PHONY: all build configure test suite plots report report-debug report-me \
-        check-style ruff dashes clean help
+.PHONY: all build configure test arm-selftest suite plots report report-debug \
+        report-me check-style ruff dashes clean help
 
 help:
 	@echo "Targets:"
@@ -37,6 +37,9 @@ build: configure
 
 test: build
 	cd $(BUILD_DIR) && $(CTEST) --output-on-failure
+
+arm-selftest:
+	bash scripts/arm_selftest.sh
 
 suite: build
 	bash scripts/run_suite.sh
@@ -77,6 +80,6 @@ all:
 	@echo "make all complete."
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) build-arm
 	rm -rf report/build report_debug/build report_for_me/build
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
