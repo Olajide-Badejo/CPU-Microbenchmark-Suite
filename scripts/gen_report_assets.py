@@ -53,14 +53,19 @@ def fig_latency(summary: dict) -> None:
     fig, ax = plt.subplots(figsize=(7.2, 4.4))
     ax.plot(kib, lat, marker="o", color=color(0), label="Load use latency")
 
-    # Plateau means as horizontal guides.
+    # Plateau means as horizontal guides. Dark green for the plateau lines and
+    # their labels so they read as one family, distinct from the data line. The
+    # label sits just above its own dashed line (a small fixed offset in points,
+    # not a multiplicative offset that would fling the DRAM label far up).
+    dark_green = "#0b6b3a"
     for i, seg in enumerate(segs):
         x0, x1 = kib[seg.start], kib[seg.end - 1]
-        ax.hlines(seg.mean, x0, x1, color=color(1), linewidth=1.4,
-                  linestyle="--", alpha=0.8)
+        ax.hlines(seg.mean, x0, x1, color=dark_green, linewidth=1.6,
+                  linestyle="--", alpha=0.9)
         ax.annotate(f"{region_name(i, len(segs))} {seg.mean:.1f} ns",
-                    xy=(x0, seg.mean), xytext=(x0, seg.mean * 1.15),
-                    color=color(1), fontsize=8, fontweight="bold")
+                    xy=(x0, seg.mean), xytext=(2, 3),
+                    textcoords="offset points", ha="left", va="bottom",
+                    color=dark_green, fontsize=8, fontweight="bold")
 
     # sysfs capacities as vertical references.
     caps = {"L1D": pc.get("sysfs_l1d_bytes", 0),
@@ -95,10 +100,20 @@ def fig_scaling(summary: dict) -> None:
     for i, k in enumerate(["copy", "scale", "add", "triad"]):
         ax.plot(threads, sc[k], marker="o", color=color(i), label=k.capitalize())
 
+    # Shade and label the P core and E core thread ranges: P cores light grey,
+    # E cores a lighter grey, so it is obvious which threads are which.
+    lo, hi = 0.5, max(threads) + 0.5
+    top = ax.get_ylim()[1]
     if n_p and n_p < max(threads):
-        ax.axvspan(n_p + 0.5, max(threads) + 0.5, color="#f0f0f0", zorder=0)
-        ax.annotate("E cores", xy=(n_p + 1, ax.get_ylim()[1] * 0.1),
-                    color="#8a8a8a", fontsize=8)
+        p_hi = n_p + 0.5
+        ax.axvspan(lo, p_hi, color="#e6e6e6", zorder=0)
+        ax.axvspan(p_hi, hi, color="#f4f4f4", zorder=0)
+        ax.text((lo + p_hi) / 2, top * 0.97, "P cores", color="#6b6b6b",
+                fontsize=9, ha="center", va="top")
+        ax.text((p_hi + hi) / 2, top * 0.97, "E cores", color="#8a8a8a",
+                fontsize=9, ha="center", va="top")
+        ax.set_ylim(top=top)
+        ax.set_xlim(lo, hi)
 
     ax.set_xlabel("Threads (P cores first, then E cores)")
     ax.set_ylabel("Bandwidth (GB/s)")
@@ -205,8 +220,10 @@ def tab_reproducibility(summary: dict) -> None:
         ("Git commit", m.get("git_commit", "n/a")),
     ]
     body = "\n".join(f"{k} & {v} \\\\" for k, v in rows)
+    # The compiler and kernel strings can be long, so the value column is a
+    # fixed width paragraph column that wraps rather than overflowing the page.
     _write(TABDIR / "repro_table.tex",
-           "\\begin{tabular}{ll}\n\\hline\n"
+           "\\small\n\\begin{tabular}{l p{9cm}}\n\\hline\n"
            f"{body}\n\\hline\n\\end{{tabular}}\n")
 
 

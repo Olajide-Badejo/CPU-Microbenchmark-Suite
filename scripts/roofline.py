@@ -19,6 +19,7 @@ Kernels placed:
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -66,7 +67,7 @@ def build_roofline(summary: dict, out_path: Path) -> dict:
                        gemm["best_gflops"]))
 
     apply_style()
-    fig, ax = plt.subplots(figsize=(7.0, 4.6))
+    fig, ax = plt.subplots(figsize=(7.4, 5.0))
 
     ai_lo, ai_hi = 1e-2, max(1e3, ridge_ai * 20)
     # Memory bound branch: perf = AI * peak_bw, up to the ridge.
@@ -78,40 +79,68 @@ def build_roofline(summary: dict, out_path: Path) -> dict:
 
     ax.plot(mem_x, mem_y, color=color(0), linewidth=2.2)
     ax.plot(comp_x, comp_y, color=color(0), linewidth=2.2, label="Measured roofline")
+
+    # Axes, scales, and limits fixed up front so the transforms used for the
+    # diagonal label below are final.
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(ai_lo, ai_hi)
+    ax.set_ylim(0.5, peak_gflops * 3.0)
+    ax.set_xlabel("Arithmetic intensity (FLOP / byte)")
+    ax.set_ylabel("Performance (GFLOPS)")
+    ax.set_title("Measured roofline, Intel Core i7-14700K")
+
+    # Finer grid: major and minor lines on both log axes so a value can be
+    # traced across to the left axis.
+    ax.grid(True, which="major", color="#cfcfcf", linewidth=0.6)
+    ax.grid(True, which="minor", color="#ececec", linewidth=0.4)
+
     # Single core compute ceiling, so the single core kernels have a fair line.
     if single_ceiling > 0:
         ax.hlines(single_ceiling, single_ceiling / peak_bw, ai_hi,
                   color="#8a8a8a", linewidth=1.4, linestyle="--")
-        ax.annotate(f"1 core ceiling {single_ceiling:.0f} GFLOPS",
-                    xy=(ai_hi * 0.05, single_ceiling * 1.08), color="#6b6b6b",
-                    fontsize=8, ha="left")
+        ax.annotate(f"1 core ceiling ({single_ceiling:.0f} GFLOPS)",
+                    xy=(ai_hi * 0.9, single_ceiling * 1.1), color="#4d4d4d",
+                    fontsize=8, ha="right")
+
+    # Ridge line with an arrow pointing to it from the label.
     ax.axvline(ridge_ai, color="#b0b0b0", linewidth=1.0, linestyle=":")
-    ax.annotate(f"ridge {ridge_ai:.1f} FLOP/byte",
-                xy=(ridge_ai, peak_gflops), xytext=(ridge_ai * 1.1, peak_gflops * 0.35),
-                color="#6b6b6b", fontsize=8)
+    ax.annotate(f"Ridge ({ridge_ai:.1f} FLOP/byte)",
+                xy=(ridge_ai, peak_gflops * 0.28),
+                xytext=(ridge_ai * 4.5, peak_gflops * 0.28),
+                color="#4d4d4d", fontsize=8, va="center", ha="left",
+                arrowprops=dict(arrowstyle="->", color="#4d4d4d", lw=1.0))
 
-    ax.annotate(f"peak compute {peak_gflops:.0f} GFLOPS",
-                xy=(ai_hi, peak_gflops), xytext=(ai_hi * 0.05, peak_gflops * 1.1),
-                color="#6b6b6b", fontsize=8, ha="left")
-    ax.annotate(f"peak bandwidth {peak_bw:.0f} GB/s",
-                xy=(ai_lo * 3, ai_lo * 3 * peak_bw), color="#6b6b6b", fontsize=8,
-                rotation=34, ha="left")
+    # Peak compute ceiling label, above its flat line.
+    ax.annotate(f"peak compute ({peak_gflops:.0f} GFLOPS)",
+                xy=(ai_hi * 0.9, peak_gflops * 1.12), color="#4d4d4d",
+                fontsize=8, ha="right")
 
+    # Kernel points, each label centered exactly under its point.
     for i, (label, ai, perf) in enumerate(points):
         c = color(i + 1)
-        ax.scatter([ai], [perf], color=c, s=55, zorder=5, edgecolor="white",
+        ax.scatter([ai], [perf], color=c, s=60, zorder=5, edgecolor="white",
                    linewidth=1.0)
-        ax.annotate(label, xy=(ai, perf), xytext=(ai * 1.15, perf * 0.72),
+        ax.annotate(label, xy=(ai, perf), xytext=(0, -15),
+                    textcoords="offset points", ha="center", va="top",
                     color=c, fontsize=9, fontweight="bold")
 
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Arithmetic intensity (FLOP / byte)")
-    ax.set_ylabel("Performance (GFLOPS)")
-    ax.set_title("Measured roofline, Intel Core i7-14700K")
     ax.legend(loc="lower right")
-    ax.set_xlim(ai_lo, ai_hi)
     fig.tight_layout()
+
+    # Diagonal "peak bandwidth" label, rotated to sit along the sloped memory
+    # line. The on screen angle of a log log line depends on the axis aspect,
+    # so it is computed from the data to display transform after layout.
+    fig.canvas.draw()
+    xa, xb = ai_lo * 2.0, ai_lo * 8.0
+    pa = ax.transData.transform((xa, xa * peak_bw))
+    pb = ax.transData.transform((xb, xb * peak_bw))
+    angle = math.degrees(math.atan2(pb[1] - pa[1], pb[0] - pa[0]))
+    xm = ai_lo * 5.0
+    ax.text(xm, xm * peak_bw * 1.3, f"peak bandwidth ({peak_bw:.0f} GB/s)",
+            rotation=angle, rotation_mode="anchor", color="#4d4d4d",
+            fontsize=8, ha="left", va="bottom")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path)
     plt.close(fig)

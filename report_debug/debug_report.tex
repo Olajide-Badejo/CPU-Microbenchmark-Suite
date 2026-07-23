@@ -19,13 +19,37 @@
   \noindent\textbf{Verification.} #5\par\bigskip
 }
 
-\title{Engineering Debug Report\\
-\large CPU Microbenchmark Suite}
-\author{Olajide Badejo}
-\date{July 2026}
-
 \begin{document}
-\maketitle
+
+% Title page: title centered horizontally and vertically, author and date at
+% the center bottom.
+\begin{titlepage}
+\centering
+\vspace*{\fill}
+{\Huge\bfseries CPU Microbenchmark Suite\par}
+\vspace{0.8em}
+{\Large\itshape Engineering Debug Report\par}
+\vspace*{\fill}
+{\large Olajide Badejo\par}
+\vspace{0.5em}
+{\large July 2026\par}
+\vspace*{0.08\textheight}
+\end{titlepage}
+
+% Abstract on its own page.
+\clearpage
+\begin{abstract}
+This report records the debugging that the clean results do not show. On this
+platform the anti optimization fight took the form of a clock measurement fight
+rather than a deleted loop. Each finding states the symptom, the root cause, the
+fix and why it was chosen, and how it was verified. It is an equal rank
+deliverable.
+\end{abstract}
+
+% Contents on its own page, and the first section on the page after.
+\clearpage
+\tableofcontents
+\newpage
 
 \section{Purpose}
 

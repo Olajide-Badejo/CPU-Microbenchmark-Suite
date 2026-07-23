@@ -16,16 +16,28 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
 
-\title{Measuring What Spec Sheets Only Claim:\\
-Cache Latency, STREAM Bandwidth, and Peak SIMD FLOPS\\
-on an Intel Core i7-14700K}
-\author{Olajide Badejo}
-\date{July 2026}
-
 \begin{document}
 
-\maketitle
+% Title page: title centered horizontally and vertically, author and date at
+% the center bottom.
+\begin{titlepage}
+\centering
+\vspace*{\fill}
+{\Huge\bfseries CPU Microbenchmark Suite\par}
+\vspace{0.8em}
+{\Large\itshape Measuring What Spec Sheets Only Claim\par}
+\vspace{0.4em}
+{\large Cache Latency, STREAM Bandwidth, and Peak SIMD FLOPS\\
+on an Intel Core i7-14700K\par}
+\vspace*{\fill}
+{\large Olajide Badejo\par}
+\vspace{0.5em}
+{\large July 2026\par}
+\vspace*{0.08\textheight}
+\end{titlepage}
 
+% Abstract on its own page.
+\clearpage
 \begin{abstract}
 This report measures, on real hardware, the numbers usually quoted from
 specification sheets: cache load use latencies, sustainable memory bandwidth,
@@ -42,7 +54,10 @@ prediction misses the naive kernel by design, and that miss is reported as a
 finding rather than hidden.
 \end{abstract}
 
+% Contents on its own page, and the first chapter on the page after.
+\clearpage
 \tableofcontents
+\clearpage
 
 \input{chapters/introduction}
 \input{chapters/background}
