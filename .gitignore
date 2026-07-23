@@ -1,0 +1,33 @@
+# Build trees
+build/
+report/build/
+report_debug/build/
+report_for_me/build/
+
+# Generated benchmark data (raw per-run dirs are ephemeral; one canonical
+# summary.json is committed on purpose under experiments/results/).
+experiments/results/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+
+# LaTeX aux (belt and suspenders; latexmk builds inside build/ dirs)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+
+# Originating build spec (prompt artifact, kept locally, not a deliverable)
+09_README_cpu_microbenchmark_suite.md
+
+# Editor / OS
+.DS_Store
+*.swp

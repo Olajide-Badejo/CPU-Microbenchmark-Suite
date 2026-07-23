@@ -1,0 +1,9 @@
+# Force LF everywhere so the dash check and shell scripts behave identically
+# on Windows, WSL, and Linux CI runners.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.ico binary
