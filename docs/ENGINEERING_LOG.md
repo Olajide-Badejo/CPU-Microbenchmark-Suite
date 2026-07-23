@@ -60,3 +60,47 @@ cpuinfo value is still recorded as `clock_ghz_cpuinfo` for transparency.
 L1D reads 5.0 cycles, L2 16.3 cycles, DRAM 85 to 89 ns: all in the physically
 expected ranges and inside the Section 10 sanity gates (L1 3 to 7 cycles, DRAM
 50 to 120 ns). The cpuinfo value stays 3.42 GHz, confirming the gap.
+
+## 2026-07-23  Phase 2  plateau detector mixed log and raw SSE
+
+**Symptom.** The synthetic curve test failed: with four injected plateaus at 1,
+3, 12, 90 ns the detector returned change points at indices 8, 13, 14 instead
+of the true 4, 8, 13. It split the flat DRAM plateau at index 14 rather than
+the obvious L1 to L2 step at index 4.
+
+**Root cause.** Change point gains were computed in log(latency) space (the
+right space, so the small L1 step and the large DRAM step are comparable), but
+when a chosen segment was split, the two child segments had their stored SSE
+recomputed from raw latencies. A DRAM child then carried a raw space SSE of
+about 65 while every candidate gain was a log space quantity near 2, so on the
+next iteration `gain = raw_sse - log_combined` produced a spurious gain of about
+65 for splitting the DRAM plateau, which beat the real L1 to L2 split.
+
+**Options.** (1) Do everything in raw space (loses the small steps). (2) Do
+everything in log space (correct). (3) Keep two SSE spaces and convert (needless
+complexity).
+
+**Fix and why.** Compute the child segment SSE from `work` (the log transformed
+array) exactly like the gains, so all magnitudes live in one space. One line.
+
+**Verification.** `test_plateau` now recovers change points 4, 8, 13 within one
+index and plateau means within 25 percent of the injected levels. On the real
+machine curve the detector places the L1D boundary 0.08 octaves from the 48 KB
+sysfs capacity and the L2 boundary 0.50 octaves from 2 MB.
+
+## 2026-07-23  Phase 2  empirical DRAM onset sits below nominal L3 capacity
+
+**Symptom.** Not a bug, a finding the cross check surfaced. The detected DRAM
+plateau begins near an 8 to 16 MB working set, but sysfs reports a 33 MB L3, so
+the boundary is about 1.5 octaves below the L3 capacity and the cross check
+flags it as `within_tolerance = false`.
+
+**Root cause.** Single threaded random pointer chasing does not reach the full
+33 MB of shared L3 before latency climbs to DRAM levels: the random 64 byte
+stride thrashes the TLB (4 KB pages give limited reach) and stresses L3
+associativity and replacement, so effective capacity under this access pattern
+is roughly half the nominal size. This is expected microarchitectural
+behavior, documented in Drepper.
+
+**Fix and why.** None. The cross check is meant to flag exactly this so a human
+reads it. Reported in the results rather than smoothed over, per Section 10.

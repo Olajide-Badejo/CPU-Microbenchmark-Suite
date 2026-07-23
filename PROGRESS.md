@@ -97,3 +97,40 @@ hardware.
 2. WSL2 `/proc/cpuinfo` clock is fixed at base and ignores turbo; replaced with
    a software dependency chain calibration. This is the platform's version of
    the mandatory "compiler deleted my loop" fight.
+
+### Phase 2: STREAM variants + scaling + plateau detection  (COMPLETE)
+
+- [x] `stream_kernels.hpp`: Copy, Scale, Add, Triad in three variants (scalar
+  with per function vectorization suppression, compiler vectorized, AVX2
+  intrinsic with `_mm256_stream_ps` non temporal stores). Classical STREAM byte
+  accounting.
+- [x] `stream.cpp`: pinned barrier synchronized thread pool with first touch,
+  single thread variant comparison, and a 1 to N thread scaling sweep on the NT
+  variant. Rewrote the timing to live entirely inside workers (worker 0 reduces
+  to the slowest thread per trial) after a main thread barrier race produced
+  impossible multi thousand GB/s readings.
+- [x] `test_stream_verify`: all three variants of all four kernels numerically
+  correct on aligned buffers, built with native flags so the real AVX2 path is
+  tested.
+- [x] `plateau_detect.py`: two segment least squares change point detection via
+  binary segmentation in log latency space, plus a sysfs cross check.
+- [x] `test_plateau.py` (ctest integration): recovers known break points from a
+  synthetic noisy staircase. Caught a real log versus raw SSE mixing bug.
+
+**Measured STREAM (float32, calibrated clock, arrays 4x L3):**
+
+| Variant | Copy | Scale | Add | Triad | (single thread GB/s) |
+|---|---|---|---|---|---|
+| scalar | 42.6 | 23.2 | 27.4 | 27.1 | honest scalar baseline |
+| vec | 40.8 | 24.4 | 28.7 | 31.9 | compiler auto vectorized |
+| nt | 36.6 | 35.8 | 37.1 | 37.5 | NT stores win on add and triad |
+
+Thread scaling saturates near 78 GB/s by 4 to 5 threads (87 percent of the
+DDR5-5600 dual channel 89.6 GB/s theoretical). The reported knee is the
+bandwidth wall: memory saturates long before the cores do, so spilling from P
+to E cores adds nothing. Single thread DRAM bandwidth sanity gate (30 to 65
+GB/s) passes (copy 36 to 42).
+
+**Plateau detection on the real curve:** L1D boundary 0.08 octaves from 48 KB,
+L2 boundary 0.50 octaves from 2 MB (both pass); the DRAM onset is flagged about
+1.5 octaves below the 33 MB L3, a real random access effect (finding, logged).

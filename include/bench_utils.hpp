@@ -257,6 +257,14 @@ public:
         return *this;
     }
 
+    // Insert an already formed JSON fragment (object, array, or number token)
+    // as the value. Used to nest a composed object under a key.
+    JsonWriter& value_raw(const std::string& raw) {
+        buffer_ << raw;
+        need_comma_ = true;
+        return *this;
+    }
+
     // Convenience: key plus value in one call.
     template <typename T>
     JsonWriter& field(const std::string& k, T v) {
