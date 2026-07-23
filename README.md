@@ -3,7 +3,7 @@
 [![CI](https://github.com/Olajide-Badejo/CPU-Microbenchmark-Suite/actions/workflows/ci.yml/badge.svg)](https://github.com/Olajide-Badejo/CPU-Microbenchmark-Suite/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C.svg)](CMakeLists.txt)
-[![Python 3](https://img.shields.io/badge/Python-3-3776AB.svg)](scripts/)
+[![Python 3](https://img.shields.io/badge/Python-3.14-3776AB.svg)](scripts/)
 
 **Measures what spec sheets only claim.** This suite measures, on real hardware,
 the numbers usually taken from a data sheet: cache load use latencies, sustainable
