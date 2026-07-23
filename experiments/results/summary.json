@@ -1,13 +1,13 @@
 {
   "meta": {
-    "timestamp": "2026-07-23T05:36:31+02:00",
+    "timestamp": "2026-07-23T05:50:03+02:00",
     "compiler": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
     "flags": "-O3 -march=native (vector), -O3 -march=native -fno-tree-vectorize (scalar baseline), LTO off",
     "cpu_model": "Intel(R) Core(TM) i7-14700K",
     "kernel": "6.18.33.2-microsoft-standard-WSL2",
     "wsl": true,
     "cpuinfo_mhz_base": 3417.601,
-    "git_commit": "3065706",
+    "git_commit": "e5e4ed1",
     "mini": false,
     "benchmarks_present": [
       "pointer_chase",

@@ -223,3 +223,31 @@ the same gap: naive GEMM sits well below the single core ceiling.
 - [x] Personal report PDF (8 pages, Section 19): overview, specifications,
   implementation, chronological steps, problems and errors, future work.
 - [x] All three PDFs compile clean and dash clean; copied to `assets/reports/`.
+
+### Phase 7: final QA and v1.0.0  (COMPLETE)
+
+- [x] `make clean && make all` reproduces build, tests, suite, plots, and all
+  three PDFs in about 28 seconds with zero manual steps.
+- [x] PDF level dash scan (pdftotext) reports zero em or en dashes in all three
+  PDFs. A bibtex page range en dash was found and fixed by switching the main
+  report to a manual bibliography; the dash checker now also catches literal
+  double hyphens in `.bib` files.
+- [x] C++ build reports zero warnings; all six tests pass on x86 and under qemu
+  for AArch64.
+
+## Definition of done
+
+- [x] `make all` clean on a fresh tree; README states measured wall clock (45 s).
+- [x] Zero dash characters repo wide including all three compiled PDFs.
+- [x] Permutation, STREAM, topology, FLOPS, and GEMM tests green; all four
+  sanity gates pass.
+- [x] Latency plateaus detected and cross checked against sysfs; measured clock
+  trace recorded in every run.
+- [x] Roofline and tile prediction figures generated from `summary.json` only;
+  prediction versus empirical best discussed (a reported miss).
+- [x] ARM NEON correctness green under qemu; ARM CI workflow present, flowing
+  through the same summary pipeline.
+- [x] Both report PDFs plus the personal PDF compile through the pipeline; the
+  PMU and clock limitation stated in README and report.
+- [x] Zero compiler warnings; CI workflows defined for x86 and native ARM;
+  `v1.0.0` ready to tag.

@@ -83,7 +83,9 @@ def scan_file(path: Path) -> list[tuple[int, str]]:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return hits
-    is_tex = path.suffix.lower() == ".tex"
+    suffix = path.suffix.lower()
+    is_tex = suffix == ".tex"
+    is_bib = suffix == ".bib"
     for lineno, line in enumerate(text.splitlines(), start=1):
         if EM_DASH in line:
             hits.append((lineno, "U+2014 em dash"))
@@ -94,6 +96,11 @@ def scan_file(path: Path) -> list[tuple[int, str]]:
             prose = _strip_tex_comment(line)
             if "--" in prose:
                 hits.append((lineno, 'literal "--" in .tex prose'))
+        if is_bib:
+            # A literal "--" in a .bib field renders as an en dash in the PDF
+            # (page ranges are the usual culprit), so it is banned at source.
+            if "--" in line:
+                hits.append((lineno, 'literal "--" in .bib field'))
     return hits
 
 
