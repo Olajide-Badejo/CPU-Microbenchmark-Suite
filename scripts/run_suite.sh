@@ -49,11 +49,14 @@ echo "raw directory: ${RAW_DIR}"
 
 # Capture the reproducibility environment.
 GPP_VER="$(g++ --version | head -1)"
-CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//')"
+# The model name and cpu MHz fields exist on x86 /proc/cpuinfo but not on
+# AArch64, so these must tolerate no match (the trailing || true keeps the empty
+# result from tripping set -e and pipefail on ARM runners).
+CPU_MODEL="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || true)"
 KERNEL="$(uname -r)"
 IS_WSL="false"; grep -qi microsoft /proc/version 2>/dev/null && IS_WSL="true"
 GIT_COMMIT="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-CPUINFO_MHZ="$(grep -m1 'cpu MHz' /proc/cpuinfo | awk '{print $4}')"
+CPUINFO_MHZ="$(grep -m1 'cpu MHz' /proc/cpuinfo 2>/dev/null | awk '{print $4}' || true)"
 
 cat > "${RAW_DIR}/env.json" <<JSON
 {
