@@ -1,0 +1,62 @@
+# Engineering log
+
+Dated entries, newest at the bottom. Each records symptom, root cause, options
+weighed, the fix and why, and how it was verified. This is the raw record that
+Phase 6 converts into the debug report PDF. The interesting fights live here.
+
+## 2026-07-23  Phase 1  WSL2 hides the hybrid P/E split
+
+**Symptom.** The topology reader could not tell P cores from E cores on the
+target i7-14700K. The paths `/sys/devices/cpu_core/cpus` and
+`/sys/devices/cpu_atom/cpus` that Linux uses to expose the hybrid split do not
+exist under WSL2, and every logical CPU reports the same 2048 KB L2, so P and E
+cannot be separated by cache size either.
+
+**Root cause.** WSL2 runs under a Hyper-V utility VM that flattens the CPU
+topology it presents to the guest. The hybrid enumeration is a bare metal
+kernel feature that the virtualized `/sys` does not carry through.
+
+**Options.** (1) Give up on P/E and pin to CPU 0 only. (2) Guess from CPU index
+using the Intel enumeration convention. (3) Require bare metal.
+
+**Fix and why.** `read_topology` detects the split when the sysfs files are
+present and marks `hybrid_known = true`; when they are absent it falls back to
+the documented Raptor Lake enumeration (P core SMT threads 0..15, E cores
+16..27) and leaves `hybrid_known = false` so no caller can mistake the guess
+for a measurement. The real split parsing path is still tested, against a
+committed `sysfs_hybrid` fixture, so the bare metal code cannot rot.
+
+**Verification.** `test_topology` passes both the flat (WSL style) and hybrid
+(bare metal style) fixtures, asserting 16 P and 12 E cores in the hybrid case
+and `hybrid_known == false` in the flat case.
+
+## 2026-07-23  Phase 1  /proc/cpuinfo clock does not track turbo under WSL2
+
+**Symptom.** The first pointer chase runs reported L1D latency at about 3.2
+cycles. Raptor Cove L1D load to use latency is 5 cycles, so 3.2 was
+impossible: the nanosecond timings were right (about 0.94 ns) but the cycle
+conversion was too low.
+
+**Root cause.** Cycles were computed from the `/proc/cpuinfo` "cpu MHz" field,
+which under WSL2 is pinned to a fixed base value (measured 3417.601 MHz) and
+never moves, even with four busy spinners loading the machine. There is no
+`cpufreq` sysfs to consult either. So the divisor was the base clock while the
+pinned core was actually boosting to about 5.4 GHz, and 0.94 ns at 5.4 GHz is
+the expected 5.1 cycles.
+
+**Options.** (1) Report the base clock and accept systematically low cycle
+numbers with a caveat. (2) Back the clock out of an assumed L1 latency
+(circular). (3) Measure the running clock in software with a calibrated
+dependent instruction chain.
+
+**Fix and why.** Added `measure_clock_ghz_calibrated`: it times a two billion
+iteration dependent integer add chain, where each add has one cycle latency and
+depends on the previous result, so the loop is latency bound at essentially one
+cycle per iteration and frequency is simply iterations over elapsed time. No
+PMU, no sysfs, and it follows turbo up to the real boost clock. The (wrong)
+cpuinfo value is still recorded as `clock_ghz_cpuinfo` for transparency.
+
+**Verification.** Calibration reports 5.36 GHz under load. With that divisor,
+L1D reads 5.0 cycles, L2 16.3 cycles, DRAM 85 to 89 ns: all in the physically
+expected ranges and inside the Section 10 sanity gates (L1 3 to 7 cycles, DRAM
+50 to 120 ns). The cpuinfo value stays 3.42 GHz, confirming the gap.

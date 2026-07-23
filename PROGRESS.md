@@ -57,5 +57,43 @@ just noisier; the recorded clock trace is the ground truth.
 - [x] MIT LICENSE, sole author Olajide Badejo.
 - [x] Attribution disabled via `.claude/settings.local.json`.
 - [x] `scripts/check_no_dashes.py` written and passing.
-- [ ] CMake + Makefile skeleton with `check-style` target.
-- [ ] First commit.
+- [x] CMake + Makefile skeleton with `check-style` target.
+- [x] First commit.
+
+### Phase 1: timing infra + pointer chase + unit tests  (COMPLETE)
+
+- [x] `bench_utils.hpp`: do_not_optimize / clobber_memory barriers, steady
+  clock timer with repeat-and-take-minimum, dependency free JSON writer,
+  aligned allocation.
+- [x] `measure_clock_ghz_calibrated`: software clock via a dependent add chain.
+  Necessary because WSL2 `/proc/cpuinfo` is pinned at 3.42 GHz and never tracks
+  turbo (see engineering log). Calibration reports 5.36 GHz under load.
+- [x] `topology.hpp`: sysfs cache parse (configurable root), hybrid P/E split
+  detection with a documented heuristic fallback under WSL, thread pinning.
+- [x] `progress.hpp`: TTY aware bar, plain lines under CI.
+- [x] `perf_event.hpp`: compiled, gated to bare metal, `is_available()` false
+  on WSL.
+- [x] `pointer_chase`: 64 byte single cycle permutation chase, sweep 4 KB to
+  512 MB, JSON out with per point ns and cycles.
+- [x] Unit tests: `test_permutation` (single cycle for every swept size, plus
+  negative controls) and `test_topology` (flat and hybrid fixtures). Both green.
+
+**Measured plateau sanity (mini run, CPU pinned, calibrated 5.36 GHz):**
+
+| Region | Working set | Latency | Cycles | Expectation |
+|---|---|---|---|---|
+| L1D | 4 to 32 KiB | 0.94 ns | 5.0 | Raptor Cove L1D is 5 cycles. PASS |
+| L2 | 64 to 256 KiB | 3.03 ns | 16.3 | Raptor Cove L2 about 16 cycles. PASS |
+| L3 | 1 to 8 MiB | 4 to 30 ns | 22 to 163 | rising through the 33 MB L3. PASS |
+| DRAM | 16 to 64 MiB | 85 to 89 ns | ~460 | DDR5 random plus TLB walk. Gate 50 to 120 ns. PASS |
+
+Both Phase 1 sanity gates (L1 3 to 7 cycles, DRAM 50 to 120 ns) pass on real
+hardware.
+
+### Findings so far (engineering log has full entries)
+
+1. WSL2 does not expose the hybrid P/E split; parser falls back to the Intel
+   enumeration convention and flags it as not measured.
+2. WSL2 `/proc/cpuinfo` clock is fixed at base and ignores turbo; replaced with
+   a software dependency chain calibration. This is the platform's version of
+   the mandatory "compiler deleted my loop" fight.
