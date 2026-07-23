@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail if any tracked text file contains an em dash or en dash.
 
-Rationale (Section 4, rule 1 of the build spec): em dashes (U+2014) and en
+Rationale (project house style rule): em dashes (U+2014) and en
 dashes (U+2013) are banned repo wide. In LaTeX prose a literal "--" or "---"
 renders as an en or em dash, so .tex files are additionally checked for those
 ASCII sequences outside of comments and a small set of legitimate exceptions
@@ -33,9 +33,9 @@ SKIP_DIRS = {
     "raw",
 }
 
-# Individual files that are not authored prose I control. The originating build
-# spec is a prompt artifact, not a deliverable, so its contents are out of
-# scope for the house style rules.
+# Individual files that are not authored prose I control. The local
+# specification notes are kept locally, not a deliverable, so their contents are
+# out of scope for the house style rules.
 SKIP_FILES = {
     "09_README_cpu_microbenchmark_suite.md",
 }

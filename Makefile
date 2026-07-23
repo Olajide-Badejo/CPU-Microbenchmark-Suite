@@ -54,7 +54,8 @@ report-debug:
 	$(MAKE) -C report_debug
 
 report-me:
-	$(MAKE) -C report_for_me
+	@if [ -d report_for_me ]; then $(MAKE) -C report_for_me; \
+	 else echo "report_for_me not present (local only), skipping"; fi
 
 # --------------------------------------------------------------------------
 # Style gates. Runnable from Phase 0 with no build artifacts present.
@@ -75,7 +76,6 @@ all:
 	$(MAKE) plots
 	$(MAKE) report
 	$(MAKE) report-debug
-	$(MAKE) report-me
 	$(MAKE) check-style
 	@echo "make all complete."
 

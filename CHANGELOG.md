@@ -28,7 +28,7 @@ an Intel Core i7-14700K under WSL2, with an AArch64 NEON port.
 
 ### Notes
 
-- Toolchain substitutions from the build spec: g++ 15.2.0 for the specified 16.1
+- Toolchain substitutions from the target specification: g++ 15.2.0 for the specified 16.1
   (unreleased) and CMake 4.2.3 for 4.4. Both cover every feature used.
 - The BLIS tile prediction misses the naive kernel by design; reported as a
   finding, not a failure.

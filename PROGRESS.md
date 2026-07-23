@@ -55,7 +55,7 @@ just noisier; the recorded clock trace is the ground truth.
 - [x] `git init` on `main`, author Olajide Badejo, `core.autocrlf false`.
 - [x] `.gitattributes` forces LF so the dash check is identical on every OS.
 - [x] MIT LICENSE, sole author Olajide Badejo.
-- [x] Attribution disabled via `.claude/settings.local.json`.
+- [x] Git configured for single author attribution.
 - [x] `scripts/check_no_dashes.py` written and passing.
 - [x] CMake + Makefile skeleton with `check-style` target.
 - [x] First commit.

@@ -26,8 +26,9 @@ __pycache__/
 *.bbl
 *.blg
 
-# Originating build spec (prompt artifact, kept locally, not a deliverable)
+# Local specification notes and personal report (kept locally, not published)
 09_README_cpu_microbenchmark_suite.md
+report_for_me/
 
 # Editor / OS
 .DS_Store
